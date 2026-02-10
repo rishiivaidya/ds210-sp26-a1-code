@@ -48,7 +48,7 @@ Took 13 steps
 
 ### Adding your solution
 
-You should add your solution code to `src/part1.rs`, `src/part2.rs`, `src/part3.rs`, and `src/part4.rs`.
+You should add your solution code to `src/part1.rs`, `src/part2.rs`, and `src/part3.rs`.
 
 **Do not change any other files!**. Our auto grader is configured to only use your solution files and will not look at or use any changes you make to other files.
 
@@ -73,7 +73,7 @@ cargo test --bin game part1 -- --test-threads=1
 cargo test --bin game part2 -- --test-threads=1
 ```
 
-**Part 4:** After adding your code to part 4, you can run the experiment using this command. The output plot will be in `plot.png`.
+**Part 4:** After adding your code to part 3, you can run the experiment using this command. The output plot will be in `plot.png`.
 ```bash
 cargo run --bin experiment
 ```
