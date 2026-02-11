@@ -12,7 +12,8 @@ impl Strategy for Part1 {
                 return guess;
             }
         }
-        unreachable!("Outside of range") //error message if outside of range
+        unreachable!("You think you're so funny choosing 
+        number out of the range, huh?") //error message if outside of range ;)
     }
 }
 
