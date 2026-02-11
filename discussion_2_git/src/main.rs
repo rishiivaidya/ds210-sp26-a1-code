@@ -1,5 +1,5 @@
 fn parity(x: i64) -> i64 {
-    return 0; // Change this line
+    return x % 2; // changed to x % 2
 }
 
 fn add(a: i64, b: i64) -> i64{
