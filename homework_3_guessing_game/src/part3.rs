@@ -17,8 +17,9 @@ impl PlayerTrait for SimulatedPlayer {
      * The function should return false otherwise.
      */
     fn ask_if_equal(&mut self, guess: u32) -> bool {
-        todo!("you did not provide your part 3 solution yet!")
+        self.the_number == guess
     }
+
     /**
      * This function compares the guess to the number that the player has in mind.
      * The function should return one of these three cases:
@@ -27,8 +28,12 @@ impl PlayerTrait for SimulatedPlayer {
      * 1 if the number > guess
      */
     fn ask_to_compare(&mut self, guess: u32) -> i32 {
-        todo!("you did not provide your part 3 solution yet!")
-    }
+        match self.the_number {
+            value if value == guess => 0,
+            value if value < guess => -1,
+            _ => 1,
+        }
+    }   
 }
 
 
@@ -114,10 +119,11 @@ mod bad_strategy_tests {
     }
 
     #[test]
+    #[should_panic]
     fn a_different_number() {
         let min = 0;
         let max = 100;
-        let number = todo!("`the_min` and `the_max` are not enough: the `BadStrategy` satisfies them, even though it is wrong. Add your own test that demonstrate that BadStrategy does not work!");
+        let number = 50; //number somewhere between min or max 
 
         // We create a simulated player
         let mut player = Player::new(SimulatedPlayer::new(number));
@@ -134,24 +140,42 @@ mod part2_tests {
     use crate::player::Player;
     use crate::strategies::Strategy;
 
-    // Add tests for part2 similar to part1 above
-    // Note that your tests should test part2, not part1
-    // They should use the line below:
-    // `let answer = Part2::guess_the_number(&mut player, min, max);`
-    // Make sure to test that the number of steps that part2 takes is "small"
-    // Look at part1_tests for inspiration.
     #[test]
     fn the_min() {
-        todo!("add your tests for part2");
+        let min = 0;
+        let max = 1000;
+        let number = min;
+
+        let mut player = Player::new(SimulatedPlayer::new(number));
+        let answer = Part2::guess_the_number(&mut player, min, max);
+
+        assert_eq!(answer, number);
+        assert!(player.steps() <= 25);
     }
 
     #[test]
     fn the_max() {
-        todo!("add your tests for part2");
+        let min = 0;
+        let max = 1000;
+        let number = max;
+
+        let mut player = Player::new(SimulatedPlayer::new(number));
+        let answer = Part2::guess_the_number(&mut player, min, max);
+
+        assert_eq!(answer, number);
+        assert!(player.steps() <= 25);
     }
 
     #[test]
     fn a_different_number() {
-        todo!("Add your tests for part2!");
+        let min = 0;
+        let max = 1000;
+        let number = 537;
+
+        let mut player = Player::new(SimulatedPlayer::new(number));
+        let answer = Part2::guess_the_number(&mut player, min, max);
+
+        assert_eq!(answer, number);
+        assert!(player.steps() <= 25);
     }
 }
