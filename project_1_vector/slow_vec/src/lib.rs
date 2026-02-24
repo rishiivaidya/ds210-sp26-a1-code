@@ -65,7 +65,22 @@ impl<T> SlowVec<T> {
 
     // Student 2: Provide your solution here
     pub fn remove(&mut self, i: usize) {
-        todo!("Student 2 should implement this");
+        let old_len = self.fixed.len();
+        assert!(i < old_len); //ensure i is a valid index that we're trying to remove 
+
+        let mut v: Vec<T> = Vec::with_capacity(old_len - 1); //
+
+        for index in 0..old_len{
+            let elem = self.fixed.move_out(index); 
+            if index != i {
+                v.push(elem);
+            }
+        }
+
+        self.fixed = FixedSizeArray::allocate(v.len());
+        for (index, elem) in v.into_iter().enumerate() {
+            self.fixed.put(elem, index)
+        }
     }
 }
 
