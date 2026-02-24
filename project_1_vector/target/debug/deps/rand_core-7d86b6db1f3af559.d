@@ -1,0 +1,11 @@
+C:\Users\jmart\Desktop\friend_ds210\project_1_vector\target\debug\deps\rand_core-7d86b6db1f3af559.d: C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\lib.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\block.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\utils.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\seedable_rng.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\unwrap_err.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\word.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\../README.md
+
+C:\Users\jmart\Desktop\friend_ds210\project_1_vector\target\debug\deps\librand_core-7d86b6db1f3af559.rmeta: C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\lib.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\block.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\utils.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\seedable_rng.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\unwrap_err.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\word.rs C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\../README.md
+
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\lib.rs:
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\block.rs:
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\utils.rs:
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\seedable_rng.rs:
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\unwrap_err.rs:
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\word.rs:
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\rand_core-0.10.0\src\../README.md:

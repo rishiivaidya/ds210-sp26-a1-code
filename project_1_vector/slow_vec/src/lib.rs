@@ -60,6 +60,7 @@ impl<T> SlowVec<T> {
 
     // Student 1: Provide your solution here.
     pub fn push(&mut self, t: T) {
+       "hi"
         todo!("Student 1 should implement this");
     }
 
