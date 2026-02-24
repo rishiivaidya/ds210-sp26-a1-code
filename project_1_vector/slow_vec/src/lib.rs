@@ -58,7 +58,7 @@ impl<T> SlowVec<T> {
         self.fixed.get(i)
     }
 
-    // Student 1: Provide your solution here.
+    // Student 1: Solution 
     pub fn push(&mut self, element: T) {
     // old length
     let old_len = self.len();
