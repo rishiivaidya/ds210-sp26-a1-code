@@ -64,12 +64,11 @@ impl<T> SlowVec<T> {
     let old_len = self.len();
 
     // allocate a new FixedSizeArray with one extra slot
-    let mut new_fixed = FixedSizeArray::allocate(old_len + 1);
+    let mut new_fixed= FixedSizeArray::allocate(old_len + 1);
 
     // move all old elements into the new array
     for i in 0..old_len {
-        let value = self.fixed.get(i);
-        new_fixed.put(value.clone(), i);
+        new_fixed.put(self.fixed.move_out(i), i);
     }
 
     // put the new element at the end
