@@ -59,6 +59,7 @@ impl<T> FastVec<T> {
     }
 
     // Student 1 and Student 2 should implement this together
+
     // Use the project handout as a guide for this part!
     pub fn get(&self, i: usize) -> &T {
         todo!("implement get!");
@@ -75,8 +76,9 @@ impl<T> FastVec<T> {
 
     // Student 1 should implement this.
     pub fn remove(&mut self, i: usize) {
-        todo!("implement remove");
-    }
+
+        self.len = self.len - 1; // After shifting all elements to the left, decrease the length of the vector by one to reflect the removal of the last element. This means that the last element is no longer considered part of the vector, even though it still exists in memory. The next time we push a new element, it will overwrite this last element.
+        malloc.free(self.ptr_to_data.add(self.len) as *mut u8); // Free the memory of the last element 
 
     // This appears correct but with further testing, you will notice it has a bug!
     // Student 1 and 2 should attempt to find and fix this bug.
