@@ -110,10 +110,10 @@ impl<T> FastVec<T> {
 impl<T> Drop for FastVec<T> {
     fn drop(&mut self) {
         // Drop elements
-        for i in 0..self.len {
-            unsafe {
-                let ptr = self.ptr_to_data.add(i);
-                ptr::drop_in_place(ptr);
+        for i in 0..self.len { //Iterate through all elements in the vector
+            unsafe { 
+                let ptr = self.ptr_to_data.add(i); 
+                ptr::drop_in_place(ptr);// This drops the element at the ptr in place
             }
         }
 
