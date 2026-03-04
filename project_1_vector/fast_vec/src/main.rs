@@ -1,4 +1,5 @@
-use malloc::MALLOC; 
+
+use malloc::MALLOC;
 use fast_vec::FastVec;
 use std::ptr;
 
@@ -10,6 +11,7 @@ use std::ptr;
 fn malloc_and_ptr() {
     // Malloc one value.
     println!("malloc_and_ptr------");
+<<<<<<< HEAD
     let ptr1 = MALLOC.malloc(size_of::<i32>()) as *mut i32; // C(This is manually pushing an integer to the heap) 
     unsafe {
         ptr::write(ptr1, 10); // C(This is writing the value 10 to the memory location pointed by ptr1)
@@ -17,29 +19,41 @@ fn malloc_and_ptr() {
 
     unsafe {
         let value = *ptr1;/
+
         println!("value inside pointer is {value}");
         println!("address of pointer is {ptr1:p}");
     }
 
     // Malloc many values.
     println!("malloc_and_ptr------");
-    let ptr2 = MALLOC.malloc(5 * size_of::<i32>()) as *mut i32; //
-    for i in 0..5 { //
+
+    let ptr2 = MALLOC.malloc(5 * size_of::<i32>()) as *mut i32; // C(This is manually pushing an array of 5 integers to the heap)
+    for i in 0..5 { // C(This is writing the value 10*i to the memory location pointed by ptr2 + i)
         unsafe {
-            ptr::write(ptr2.add(i), 10 * (i as i32)); //
+            ptr::write(ptr2.add(i), 10 * (i as i32)); // C(ptr2.add(i) computes the address of the i-th element in the array, and ptr::write writes the value to that address)
+
+    let ptr2 = MALLOC.malloc(5 * size_of::<i32>()) as *mut i32;
+    for i in 0..5 {
+        unsafe {
+            ptr::write(ptr2.add(i), 10 * (i as i32));
+
         }
     }
 
     for i in 0..5 {
         unsafe {
-            let tmp = ptr2.add(i);
-            let value = *tmp;
+            let tmp = ptr2.add(i); 
+            let value = *tmp; 
             println!("value at index {i} is {value}");
             println!("address of index {i} is {tmp:p}");
         }
     }
+
     // What happens if you access data outside the range, e.g. ptr2.add(6)? 
-    // What happens if you write data outside the range, e.g., at ptr2.add(6)?
+
+    // What happens if you access data outside the range, e.g. ptr2.add(6)?
+
+    // What happens if you write data outside the range, e.g., at ptr2.add(6)? 
     // What happens if you read data from a pointer before writing to it!?
 }
 

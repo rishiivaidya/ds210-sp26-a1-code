@@ -1,0 +1,5 @@
+C:\Users\jmart\Desktop\friend_ds210\project_1_vector\target\debug\build\font-kit-55e932b21de4e0f9\build_script_build-55e932b21de4e0f9.d: C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\font-kit-0.14.3\build.rs
+
+C:\Users\jmart\Desktop\friend_ds210\project_1_vector\target\debug\build\font-kit-55e932b21de4e0f9\build_script_build-55e932b21de4e0f9.exe: C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\font-kit-0.14.3\build.rs
+
+C:\Users\jmart\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\font-kit-0.14.3\build.rs:
