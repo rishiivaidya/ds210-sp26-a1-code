@@ -61,9 +61,15 @@ impl<T> FastVec<T> {
     // Student 1 and Student 2 should implement this together
 
     // Use the project handout as a guide for this part!
-    pub fn get(&self, i: usize) -> &T {
-        todo!("implement get!");
+    pub fn get(&self, i: usize) -> &T { // Check if index is out of bounds and panic if it is
+        if i >= self.len {
+            panic!("FastVec: get out of bounds");
+        }
+        unsafe {
+            &*self.ptr_to_data.add(i) 
+        }
     }
+
 
     // Student 2 should implement this.
     pub fn push(&mut self, t: T) {
@@ -75,21 +81,51 @@ impl<T> FastVec<T> {
     }
 
     // Student 1 should implement this.
-    pub fn remove(&mut self, i: usize) {
+    pub fn remove(&mut self, i: usize) -> T {
+    // Check if index is out of bounds and panic if it is
+    if i >= self.len {
+        panic!("FastVec: remove out of bounds");
+    }
 
-        self.len = self.len - 1; // After shifting all elements to the left, decrease the length of the vector by one to reflect the removal of the last element. This means that the last element is no longer considered part of the vector, even though it still exists in memory. The next time we push a new element, it will overwrite this last element.
-        malloc.free(self.ptr_to_data.add(self.len) as *mut u8); // Free the memory of the last element 
-
+    unsafe {
+        // First, read and save the element to be removed
+        let removed_element = ptr::read(self.ptr_to_data.add(i));
+        
+        // Shift all elements after i one position to the left
+        for j in (i + 1)..self.len {
+            let src_ptr = self.ptr_to_data.add(j);
+            let dst_ptr = self.ptr_to_data.add(j - 1);
+            let element = ptr::read(src_ptr);
+            ptr::write(dst_ptr, element); // Move element from src to dst
+        }
+        
+        // Update the length of vector
+        self.len -= 1;
+        
+        //  removed element
+        removed_element
+    }
+}
     // This appears correct but with further testing, you will notice it has a bug!
     // Student 1 and 2 should attempt to find and fix this bug.
     // Hint: check out case 2 in memory.rs, which you can run using
     //       cargo run --bin memory
-    pub fn clear(&mut self) {
-        MALLOC.free(self.ptr_to_data as *mut u8);
-        self.ptr_to_data = null_mut();
-        self.len = 0;
-        self.capacity = 0;
+   pub fn clear(&mut self) {
+    unsafe {
+        for i in 0..self.len { // Iterate through all elements and read them to drop them properly
+            ptr::read(self.ptr_to_data.add(i)); // This moves the element out, which causes it to be dropped immediately since we don't store it anywhere
+            // we don't need to call drop() here because reading the element with ptr::read() automatically drops it when it goes out of scope
+        }
+        
+        // Then free the memory
+        if !self.ptr_to_data.is_null() { // Check if the pointer is not null before freeing
+            MALLOC.free(self.ptr_to_data as *mut u8); // Free the allocated memory
+        }
     }
+    
+    self.ptr_to_data = null_mut(); // Set the pointer to null to avoid dangling pointer
+    self.len = 0; // Reset length to 0
+    self.capacity = 0;//Reset capacity to 0
 }
 
 // Destructor should clear the fast_vec to avoid leaking memory.
