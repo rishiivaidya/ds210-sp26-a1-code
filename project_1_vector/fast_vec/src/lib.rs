@@ -20,6 +20,7 @@ impl<T> FastVec<T> {
         };
     }
 
+
     // Retrieve the FastVec's length and capacity
     pub fn len(&self) -> usize {
         return self.len;
@@ -127,7 +128,7 @@ impl<T> FastVec<T> {
     self.len = 0; // Reset length to 0
     self.capacity = 0;//Reset capacity to 0
 }
-
+}
 // Destructor should clear the fast_vec to avoid leaking memory.
 impl<T> Drop for FastVec<T> {
     fn drop(&mut self) {
