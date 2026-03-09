@@ -20,6 +20,7 @@ impl<T> FastVec<T> {
         };
     }
 
+
     // Retrieve the FastVec's length and capacity
     pub fn len(&self) -> usize {
         return self.len;
@@ -59,53 +60,93 @@ impl<T> FastVec<T> {
     }
 
     // Student 1 and Student 2 should implement this together
-    // Use the project handout as a guide for this part!
-    pub fn get(&self, i: usize) -> &T { 
 
-        todo!("implement get!");
+    // Use the project handout as a guide for this part!
+    pub fn get(&self, i: usize) -> &T { // Check if index is out of bounds and panic if it is
+        if i >= self.len {
+            panic!("FastVec: get out of bounds");
+        }
+        unsafe {
+            &*self.ptr_to_data.add(i) 
+        }
     }
+
 
     // Student 2 should implement this.
     pub fn push(&mut self, t: T) {
-        if self.len == self.capacity {
-            todo!("implement growing the vector by doubling the size!");
-        } else {
-            todo!("implement pushing t directly since the vector still has capacity!");
+        unsafe {
+            if self.len == self.capacity {
+
+            let new_capacity = self.capacity * 2;
+
+            let new_ptr = MALLOC.malloc(size_of::<T>() * new_capacity) as *mut T;
+
+            for i in 0..self.len {
+                let element = ptr::read(self.ptr_to_data.add(i));
+                ptr::write(new_ptr.add(i), element);
+            }
+
+            MALLOC.free(self.ptr_to_data as *mut u8);
+
+            self.ptr_to_data = new_ptr; 
+            self.capacity = new_capacity;
+            }
+
+            ptr::write(self.ptr_to_data.add(self.len), t);
+
+            self.len += 1;
         }
     }
+
 
     // Student 1 should implement this.
-    pub fn remove(&mut self, i: usize) {// Remove the element at index i and shift all elements after it to the left by one position
-        for i in i..self.len-1 { //Iterate from index i to the second last index of the vector (self.len - 1). It shifts each element one position to the left
-            unsafe { // unsafe block because performing raw pointer arithmetic and dereferencing raw pointers
-                let src_ptr = self.ptr_to_data.add(i + 1); // This calculates the source pointer by adding i + 1 to the base pointer (self.ptr_to_data). This points to the element that is currently at index i + 1, which we want to move to index i.
-                let dst_ptr = self.ptr_to_data.add(i); // This calculates the destination pointer by adding i to the base pointer (self.ptr_to_data). This points to the element at index i, which we want to overwrite with the element from index i + 1.
-                ptr::copy(src_ptr, dst_ptr, 1); // This copies one element from the source pointer (src_ptr) to the destination pointer (dst_ptr). This effectively shifts the element at index i + 1 to index i, and so on for all subsequent elements until the end of the vector. After this loop, the last element of the vector will be duplicated, but we will decrease the length of the vector by one to effectively remove the last element.
-            }
-        }
-        self.len = self.len - 1;
-        MALLOC.free(unsafe { self.ptr_to_data.add(self.len) } as *mut u8); // This frees the memory allocated for the last element of the vector
-
-
+    pub fn remove(&mut self, i: usize) -> T {
+    // Check if index is out of bounds and panic if it is
+    if i >= self.len {
+        panic!("FastVec: remove out of bounds");
     }
+
+    unsafe {
+        // First, read and save the element to be removed
+        let removed_element = ptr::read(self.ptr_to_data.add(i));
+        
+        // Shift all elements after i one position to the left
+        for j in (i + 1)..self.len {
+            let src_ptr = self.ptr_to_data.add(j);
+            let dst_ptr = self.ptr_to_data.add(j - 1);
+            let element = ptr::read(src_ptr);
+            ptr::write(dst_ptr, element); // Move element from src to dst
+        }
+        
+        // Update the length of vector
+        self.len -= 1;
+        
+        //  removed element
+        removed_element
+    }
+}
     // This appears correct but with further testing, you will notice it has a bug!
     // Student 1 and 2 should attempt to find and fix this bug.
     // Hint: check out case 2 in memory.rs, which you can run using
     //       cargo run --bin memory
-    pub fn clear(&mut self) {
-    // Drop all elements
-    for i in 0..self.len { //Iterate through all elements in the vector
-        unsafe {
-            let ptr = self.ptr_to_data.add(i); // Calculate the pointer to the i-th element by adding i to the base pointer (self.ptr_to_data)
-            ptr::drop_in_place(ptr); // This drops the element at the ptr in place
+   pub fn clear(&mut self) {
+    unsafe {
+        for i in 0..self.len { // Iterate through all elements and read them to drop them properly
+            ptr::read(self.ptr_to_data.add(i)); // This moves the element out, which causes it to be dropped immediately since we don't store it anywhere
+            // we don't need to call drop() here because reading the element with ptr::read() automatically drops it when it goes out of scope
+        }
+        
+        // Then free the memory
+        if !self.ptr_to_data.is_null() { // Check if the pointer is not null before freeing
+            MALLOC.free(self.ptr_to_data as *mut u8); // Free the allocated memory
         }
     }
-
-    // Keep the allocation
-    self.len = 0;
+    
+    self.ptr_to_data = null_mut(); // Set the pointer to null to avoid dangling pointer
+    self.len = 0; // Reset length to 0
+    self.capacity = 0;//Reset capacity to 0
 }
-
-
+}
 // Destructor should clear the fast_vec to avoid leaking memory.
 impl<T> Drop for FastVec<T> {
     fn drop(&mut self) {
