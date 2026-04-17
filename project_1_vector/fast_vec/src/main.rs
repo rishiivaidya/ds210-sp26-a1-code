@@ -16,7 +16,7 @@ fn malloc_and_ptr() {
     }
 
     unsafe {
-        let value = *ptr1;/
+        let value = *ptr1;
         println!("value inside pointer is {value}");
         println!("address of pointer is {ptr1:p}");
     }
