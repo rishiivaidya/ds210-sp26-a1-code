@@ -15,7 +15,6 @@ impl SearchConfig {
     fn timed_out(&self) -> bool {
         self.start.elapsed().as_millis() as u64 > self.budget_ms
     }
-
     fn perspective(&self, score: i32) -> i32 {
         if self.original == Player::X { score } else { -score }
     }
@@ -28,13 +27,13 @@ impl Agent for SolutionAgent {
             start: Instant::now(),
             budget_ms: (time_limit as f64 * 0.75) as u64,
         };
-
         let (fr, fc) = board.moves()[0];
         let mut best = (0, fr, fc);
-
         for depth in 1..=20 {
             if config.timed_out() { break; }
-            if let Some((score, r, c)) = search(board, player, depth, i32::MIN, i32::MAX, &config) {
+            if let Some((score, r, c)) =
+                search(board, player, depth, i32::MIN, i32::MAX, &config)
+            {
                 best = (score, r, c);
             }
         }
@@ -53,62 +52,76 @@ fn search(
     if config.timed_out() {
         return None;
     }
-
     if board.game_over() {
         return Some((config.perspective(board.score()), 0, 0));
     }
-
     let moves = board.moves();
     if moves.is_empty() || depth == 0 {
         return Some((heuristic(board, config), 0, 0));
     }
-
     let ordered = order_moves(board, moves, current);
     let maximizing = current == config.original;
     let mut best_score = if maximizing { i32::MIN } else { i32::MAX };
     let mut best_move = (0, 0);
-
     for m in ordered {
         board.apply_move(m, current);
         let result = search(board, current.flip(), depth - 1, alpha, beta, config);
         board.undo_move(m, current);
-
         let score = match result {
             Some((s, _, _)) => s,
             None => return None,
         };
-
         if maximizing && score > best_score || !maximizing && score < best_score {
             best_score = score;
             best_move = m;
         }
-
         if maximizing { alpha = alpha.max(best_score); }
         else          { beta  = beta.min(best_score);  }
-
         if beta <= alpha { break; }
     }
-
     Some((best_score, best_move.0, best_move.1))
 }
 
-fn order_moves(board: &mut Board, moves: Vec<(usize, usize)>, current: Player) -> Vec<(usize, usize)> {
+// CHANGED from v1: now considers BOTH the offensive value of a move (what
+// happens if WE play it) AND the defensive value (what would have happened
+// if our OPPONENT played the same square). Moves that block an opponent's
+// 3-in-a-row now jump to the front of the ordering instead of looking
+// identical to a random empty cell. This is the most important fix for
+// the "we lose as O" symptom -- O is more often defending, and the old
+// ordering literally couldn't see defensive moves.
+fn order_moves(
+    board: &mut Board,
+    moves: Vec<(usize, usize)>,
+    current: Player,
+) -> Vec<(usize, usize)> {
+    let opponent = current.flip();
+    // sign = +1 when we're X (raw score going up is good for us)
+    // sign = -1 when we're O (raw score going down is good for us)
+    let sign = if current == Player::X { 1 } else { -1 };
+
     let mut scored: Vec<(i32, (usize, usize))> = moves
         .into_iter()
         .map(|m| {
+            // What's the score if WE play here?
             board.apply_move(m, current);
-            let s = board.score();
+            let after_me = board.score();
             board.undo_move(m, current);
-            (s, m)
+
+            // What's the score if our OPPONENT plays here instead?
+            board.apply_move(m, opponent);
+            let after_opp = board.score();
+            board.undo_move(m, opponent);
+
+            // (after_me - after_opp) measures how much taking this square
+            // helps us *vs* leaving it for the opponent. Multiply by sign so
+            // "good for the current player" is always a high number.
+            let priority = sign * (after_me - after_opp);
+            (priority, m)
         })
         .collect();
 
-    if current == Player::X {
-        scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
-    } else {
-        scored.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-    }
-
+    // Always sort descending now: highest priority first.
+    scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
     scored.into_iter().map(|(_, m)| m).collect()
 }
 
@@ -117,7 +130,6 @@ fn heuristic(board: &Board, config: &SearchConfig) -> i32 {
     let size = cells.len();
     let total_cells = size * size;
 
-    // Count filled cells to determine game stage
     let filled = cells.iter().flatten()
         .filter(|c| **c != Cell::Empty && **c != Cell::Wall)
         .count();
@@ -125,21 +137,18 @@ fn heuristic(board: &Board, config: &SearchConfig) -> i32 {
         .filter(|c| **c == Cell::Empty)
         .count();
 
-    // Early game: weight potential heavily
-    // Late game: weight actual score heavily
     let progress = filled as f32 / total_cells as f32;
-    let score_weight    = (50.0 + 200.0 * progress) as i32;
+    let score_weight     = (50.0 + 200.0 * progress) as i32;
     let potential_weight = (100.0 - 80.0 * progress) as i32;
 
     let current_score   = config.perspective(board.score());
     let my_potential    = count_potential(cells, size, config.original);
     let their_potential = count_potential(cells, size, config.original.flip());
 
-    // Penalize moves that leave opponent with open threats
-    // Bonus for moves near the center (more scoring opportunities)
+    // CHANGED from v1: center_control is now a differential, so the heuristic
+    // notices when the opponent owns the center (not just when WE own it).
     let center_bonus = center_control(cells, size, config.original);
 
-    // Urgency: if board is nearly full, raw score matters most
     if empty <= 4 {
         return current_score * 1000;
     }
@@ -149,27 +158,34 @@ fn heuristic(board: &Board, config: &SearchConfig) -> i32 {
         + center_bonus * 5
 }
 
-fn center_control(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 { 
-    let player_cell = match player { Player::X => Cell::X, Player::O => Cell::O };
+// CHANGED from v1: now subtracts the opponent's center value as well as
+// adding our own. Closer to the center = higher value. When we play as O
+// against an opponent that grabbed the center on move 1, this term will
+// correctly flag "opponent has the middle" as a real disadvantage instead
+// of treating it as neutral.
+fn center_control(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 {
+    let me  = match player { Player::X => Cell::X, Player::O => Cell::O };
+    let opp = match player { Player::X => Cell::O, Player::O => Cell::X };
     let mut score = 0;
     let center = size / 2;
-
     for i in 0..size {
         for j in 0..size {
-            if cells[i][j] == player_cell {
-                // Closer to center = higher value
-                let dist = ((i as i32 - center as i32).abs() + (j as i32 - center as i32).abs()) as i32;
-                score += (size as i32) - dist;
+            let dist = ((i as i32 - center as i32).abs()
+                       + (j as i32 - center as i32).abs()) as i32;
+            let value = (size as i32) - dist;
+            if cells[i][j] == me {
+                score += value;
+            } else if cells[i][j] == opp {
+                score -= value;
             }
         }
     }
     score
 }
 
-fn count_potential(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 { 
+fn count_potential(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 {
     let player_cell = match player { Player::X => Cell::X, Player::O => Cell::O };
     let mut score = 0;
-
     for i in 0..size {
         for j in 0..size {
             if j + 2 < size {
@@ -201,7 +217,7 @@ fn count_potential(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 {
     score
 }
 
-fn score_window(window: [&Cell; 3], player_cell: &Cell) -> i32 { // 
+fn score_window(window: [&Cell; 3], player_cell: &Cell) -> i32 {
     if window.iter().any(|&c| c != player_cell && *c != Cell::Empty) {
         return 0;
     }
