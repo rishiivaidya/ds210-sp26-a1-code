@@ -82,13 +82,7 @@ fn search(
     Some((best_score, best_move.0, best_move.1))
 }
 
-// CHANGED from v1: now considers BOTH the offensive value of a move (what
-// happens if WE play it) AND the defensive value (what would have happened
-// if our OPPONENT played the same square). Moves that block an opponent's
-// 3-in-a-row now jump to the front of the ordering instead of looking
-// identical to a random empty cell. This is the most important fix for
-// the "we lose as O" symptom -- O is more often defending, and the old
-// ordering literally couldn't see defensive moves.
+// changed from v1
 fn order_moves(
     board: &mut Board,
     moves: Vec<(usize, usize)>,
@@ -102,25 +96,23 @@ fn order_moves(
     let mut scored: Vec<(i32, (usize, usize))> = moves
         .into_iter()
         .map(|m| {
-            // What's the score if WE play here?
+            
             board.apply_move(m, current);
             let after_me = board.score();
             board.undo_move(m, current);
 
-            // What's the score if our OPPONENT plays here instead?
+            
             board.apply_move(m, opponent);
             let after_opp = board.score();
             board.undo_move(m, opponent);
 
-            // (after_me - after_opp) measures how much taking this square
-            // helps us *vs* leaving it for the opponent. Multiply by sign so
-            // "good for the current player" is always a high number.
+            
             let priority = sign * (after_me - after_opp);
             (priority, m)
         })
         .collect();
 
-    // Always sort descending now: highest priority first.
+    // always sort descending now: highest priority first
     scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
     scored.into_iter().map(|(_, m)| m).collect()
 }
@@ -145,8 +137,8 @@ fn heuristic(board: &Board, config: &SearchConfig) -> i32 {
     let my_potential    = count_potential(cells, size, config.original);
     let their_potential = count_potential(cells, size, config.original.flip());
 
-    // CHANGED from v1: center_control is now a differential, so the heuristic
-    // notices when the opponent owns the center (not just when WE own it).
+    // changed from v1: center_control is now a differential, so the heuristic
+    // notices when the opponent owns the center 
     let center_bonus = center_control(cells, size, config.original);
 
     if empty <= 4 {
@@ -158,11 +150,9 @@ fn heuristic(board: &Board, config: &SearchConfig) -> i32 {
         + center_bonus * 5
 }
 
-// CHANGED from v1: now subtracts the opponent's center value as well as
-// adding our own. Closer to the center = higher value. When we play as O
-// against an opponent that grabbed the center on move 1, this term will
-// correctly flag "opponent has the middle" as a real disadvantage instead
-// of treating it as neutral.
+// now subtracts the opponent's center value as well as adding our own. 
+//Closer to the center = higher value
+
 fn center_control(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 {
     let me  = match player { Player::X => Cell::X, Player::O => Cell::O };
     let opp = match player { Player::X => Cell::O, Player::O => Cell::X };
