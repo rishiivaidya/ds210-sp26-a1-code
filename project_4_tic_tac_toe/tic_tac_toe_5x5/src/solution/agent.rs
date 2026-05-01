@@ -1,219 +1,248 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tic_tac_toe_stencil::agents::Agent;
 use tic_tac_toe_stencil::board::{Board, Cell};
 use tic_tac_toe_stencil::player::Player;
 
 pub struct SolutionAgent {}
 
-struct SearchConfig {
-    original: Player,
-    start: Instant,
-    budget_ms: u64,
-}
+// heuristic estimates how good the board is when we can't search all the way to the end
+// positive score favors X, negative favors O
+fn heuristic(board: &Board) -> i32 {
+    let cells = board.get_cells();
+    let n = cells.len();
+    let total_cells = n * n;
 
-impl SearchConfig {
-    fn timed_out(&self) -> bool {
-        self.start.elapsed().as_millis() as u64 > self.budget_ms
-    }
-    fn perspective(&self, score: i32) -> i32 {
-        if self.original == Player::X { score } else { -score }
-    }
-}
-
-impl Agent for SolutionAgent {
-    fn solve(board: &mut Board, player: Player, time_limit: u64) -> (i32, usize, usize) {
-        let config = SearchConfig {
-            original: player,
-            start: Instant::now(),
-            budget_ms: (time_limit as f64 * 0.75) as u64,
-        };
-        let (fr, fc) = board.moves()[0];
-        let mut best = (0, fr, fc);
-        for depth in 1..=20 {
-            if config.timed_out() { break; }
-            if let Some((score, r, c)) =
-                search(board, player, depth, i32::MIN, i32::MAX, &config)
-            {
-                best = (score, r, c);
+    // count empties by walking cells instead of calling board.moves() 
+    let mut empty_count: usize = 0;
+    for row in cells {
+        for c in row {
+            if matches!(c, Cell::Empty) {
+                empty_count += 1;
             }
         }
-        best
     }
-}
 
-fn search(
-    board: &mut Board,
-    current: Player,
-    depth: usize,
-    mut alpha: i32,
-    mut beta: i32,
-    config: &SearchConfig,
-) -> Option<(i32, usize, usize)> {
-    if config.timed_out() {
-        return None;
-    }
-    if board.game_over() {
-        return Some((config.perspective(board.score()), 0, 0));
-    }
-    let moves = board.moves();
-    if moves.is_empty() || depth == 0 {
-        return Some((heuristic(board, config), 0, 0));
-    }
-    let ordered = order_moves(board, moves, current);
-    let maximizing = current == config.original;
-    let mut best_score = if maximizing { i32::MIN } else { i32::MAX };
-    let mut best_move = (0, 0);
-    for m in ordered {
-        board.apply_move(m, current);
-        let result = search(board, current.flip(), depth - 1, alpha, beta, config);
-        board.undo_move(m, current);
-        let score = match result {
-            Some((s, _, _)) => s,
-            None => return None,
+    // determine game stage based on how many empty cells remain
+    // adjust weights so strategy changes throughout the game
+    let (triplet_weight, two_weight, one_weight) =
+        if empty_count > total_cells * 2 / 3 {
+            
+            (100, 10, 2)
+        } else if empty_count > total_cells / 3 {
+         
+            (100, 20, 3)
+        } else {
+            
+            (150, 40, 3)
         };
-        if maximizing && score > best_score || !maximizing && score < best_score {
-            best_score = score;
-            best_move = m;
+
+        //adjusting weight depending on stage in game
+
+    let mut score: i32 = board.score() * triplet_weight as i32;
+
+    //both X and O now prefer the cente
+    let center = (n / 2) as i32;
+    for i in 0..n {
+        for j in 0..n {
+            let dist = (i as i32 - center).abs() + (j as i32 - center).abs();
+            let position_bonus = n as i32 - dist;
+            match &cells[i][j] {
+                Cell::X => score += position_bonus,
+                Cell::O => score -= position_bonus,
+                _ => {}
+            }
         }
-        if maximizing { alpha = alpha.max(best_score); }
-        else          { beta  = beta.min(best_score);  }
-        if beta <= alpha { break; }
     }
-    Some((best_score, best_move.0, best_move.1))
+
+    //window scanning in 4 directions
+    for i in 0..n {
+        for j in 0..n {
+            let dirs: &[(i32, i32)] = &[(0, 1), (1, 0), (1, 1), (1, -1)];
+            for (di, dj) in dirs {
+                let i2 = i as i32 + di;
+                let j2 = j as i32 + dj;
+                let i3 = i as i32 + 2 * di;
+                let j3 = j as i32 + 2 * dj;
+                if i2 < 0 || j2 < 0 || i3 < 0 || j3 < 0 {
+                    continue;
+                }
+                if i2 >= n as i32 || j2 >= n as i32 || i3 >= n as i32 || j3 >= n as i32 {
+                    continue;
+                }
+                let a = &cells[i][j];
+                let b = &cells[i2 as usize][j2 as usize];
+                let c = &cells[i3 as usize][j3 as usize];
+                score += eval_window_weighted(a, b, c, two_weight, one_weight);
+            }
+        }
+    }
+
+    score
 }
 
-// changed from v1
+fn eval_window_weighted(a: &Cell, b: &Cell, c: &Cell, two_weight: i32, one_weight: i32) -> i32 {
+    let cells = [a, b, c];
+    let x_count = cells.iter().filter(|&&c| c == &Cell::X).count();
+    let o_count = cells.iter().filter(|&&c| c == &Cell::O).count();
+    let empty_count = cells.iter().filter(|&&c| c == &Cell::Empty).count();
+
+    // if both players have pieces in this window, neither can complete a triplet here
+    if x_count > 0 && o_count > 0 {
+        return 0;
+    }
+    // if the window contains a wall, it can never become a triplet
+    if x_count + o_count + empty_count < 3 {
+        return 0;
+    }
+
+    // two in a row with an open end; one move from completing a triplet
+    if x_count == 2 && empty_count == 1 {
+        return two_weight;
+    }
+    if o_count == 2 && empty_count == 1 {
+        return -two_weight;
+    }
+    // single piece with open space
+    if x_count == 1 && empty_count == 2 {
+        return one_weight;
+    }
+    if o_count == 1 && empty_count == 2 {
+        return -one_weight;
+    }
+    0
+}
+
+// order moves before searching them
+
 fn order_moves(
     board: &mut Board,
     moves: Vec<(usize, usize)>,
-    current: Player,
+    player: Player,
 ) -> Vec<(usize, usize)> {
-    let opponent = current.flip();
-    // sign = +1 when we're X (raw score going up is good for us)
-    // sign = -1 when we're O (raw score going down is good for us)
-    let sign = if current == Player::X { 1 } else { -1 };
+    let opp = player.flip();
+    // sign = +1 for X (higher raw score is good), -1 for O (lower is good).
+    let sign = match player {
+        Player::X => 1,
+        Player::O => -1,
+    };
 
     let mut scored: Vec<(i32, (usize, usize))> = moves
         .into_iter()
         .map(|m| {
-            
-            board.apply_move(m, current);
-            let after_me = board.score();
-            board.undo_move(m, current);
+            board.apply_move(m, player);
+            let after_us = board.score();
+            board.undo_move(m, player);
 
-            
-            board.apply_move(m, opponent);
+            board.apply_move(m, opp);
             let after_opp = board.score();
-            board.undo_move(m, opponent);
+            board.undo_move(m, opp);
 
-            
-            let priority = sign * (after_me - after_opp);
+            // both terms get the same sign treatment so "good for the side to
+            // move" is always a high number, regardless of which side that is
+            let priority = sign * (after_us - after_opp);
             (priority, m)
         })
         .collect();
 
-    // always sort descending now: highest priority first
     scored.sort_unstable_by(|a, b| b.0.cmp(&a.0));
     scored.into_iter().map(|(_, m)| m).collect()
 }
 
-fn heuristic(board: &Board, config: &SearchConfig) -> i32 {
-    let cells = board.get_cells();
-    let size = cells.len();
-    let total_cells = size * size;
+fn minimax(
+    board: &mut Board,
+    player: Player,
+    depth: u32,
+    mut alpha: i32,
+    mut beta: i32,
+    deadline: &Instant, // now an absolute deadline (Instant), not a start time
+) -> Option<(i32, usize, usize)> {
+    // single source of truth for time
 
-    let filled = cells.iter().flatten()
-        .filter(|c| **c != Cell::Empty && **c != Cell::Wall)
-        .count();
-    let empty = cells.iter().flatten()
-        .filter(|c| **c == Cell::Empty)
-        .count();
-
-    let progress = filled as f32 / total_cells as f32;
-    let score_weight     = (50.0 + 200.0 * progress) as i32;
-    let potential_weight = (100.0 - 80.0 * progress) as i32;
-
-    let current_score   = config.perspective(board.score());
-    let my_potential    = count_potential(cells, size, config.original);
-    let their_potential = count_potential(cells, size, config.original.flip());
-
-    // changed from v1: center_control is now a differential, so the heuristic
-    // notices when the opponent owns the center 
-    let center_bonus = center_control(cells, size, config.original);
-
-    if empty <= 4 {
-        return current_score * 1000;
+    if Instant::now() >= *deadline {
+        return None;
     }
 
-    current_score * score_weight
-        + (my_potential - their_potential) * potential_weight
-        + center_bonus * 5
-}
+    if board.game_over() {
+        return Some((board.score(), 0, 0));
+    }
+    if depth == 0 {
+        return Some((heuristic(board), 0, 0));
+    }
 
-// now subtracts the opponent's center value as well as adding our own. 
-//Closer to the center = higher value
+    let moves = board.moves();
+    //order moves before searching them
+    let ordered = order_moves(board, moves, player);
 
-fn center_control(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 {
-    let me  = match player { Player::X => Cell::X, Player::O => Cell::O };
-    let opp = match player { Player::X => Cell::O, Player::O => Cell::X };
-    let mut score = 0;
-    let center = size / 2;
-    for i in 0..size {
-        for j in 0..size {
-            let dist = ((i as i32 - center as i32).abs()
-                       + (j as i32 - center as i32).abs()) as i32;
-            let value = (size as i32) - dist;
-            if cells[i][j] == me {
-                score += value;
-            } else if cells[i][j] == opp {
-                score -= value;
+    let mut best_move = ordered[0]; // safe default — guaranteed to exist since game is not over
+    let mut best_score = match player {
+        Player::X => i32::MIN,
+        Player::O => i32::MAX,
+    };
+
+    for m in ordered {
+        board.apply_move(m, player);
+        let result = minimax(board, player.flip(), depth - 1, alpha, beta, deadline);
+        board.undo_move(m, player);
+
+        let (score, _, _) = match result {
+            Some(r) => r,
+            None => return None,
+        };
+
+        match player {
+            Player::X => {
+                if score > best_score {
+                    best_score = score;
+                    best_move = m;
+                }
+                if best_score > alpha {
+                    alpha = best_score;
+                }
+            }
+            Player::O => {
+                if score < best_score {
+                    best_score = score;
+                    best_move = m;
+                }
+                if best_score < beta {
+                    beta = best_score;
+                }
             }
         }
-    }
-    score
-}
 
-fn count_potential(cells: &Vec<Vec<Cell>>, size: usize, player: Player) -> i32 {
-    let player_cell = match player { Player::X => Cell::X, Player::O => Cell::O };
-    let mut score = 0;
-    for i in 0..size {
-        for j in 0..size {
-            if j + 2 < size {
-                score += score_window(
-                    [&cells[i][j], &cells[i][j+1], &cells[i][j+2]],
-                    &player_cell,
-                );
-            }
-            if i + 2 < size {
-                score += score_window(
-                    [&cells[i][j], &cells[i+1][j], &cells[i+2][j]],
-                    &player_cell,
-                );
-            }
-            if i + 2 < size && j + 2 < size {
-                score += score_window(
-                    [&cells[i][j], &cells[i+1][j+1], &cells[i+2][j+2]],
-                    &player_cell,
-                );
-            }
-            if i + 2 < size && j >= 2 {
-                score += score_window(
-                    [&cells[i][j], &cells[i+1][j-1], &cells[i+2][j-2]],
-                    &player_cell,
-                );
-            }
+        if alpha >= beta {
+            break;
         }
     }
-    score
+
+    Some((best_score, best_move.0, best_move.1))
 }
 
-fn score_window(window: [&Cell; 3], player_cell: &Cell) -> i32 {
-    if window.iter().any(|&c| c != player_cell && *c != Cell::Empty) {
-        return 0;
-    }
-    match window.iter().filter(|&&c| c == player_cell).count() {
-        2 => 3,
-        1 => 1,
-        _ => 0,
+impl Agent for SolutionAgent {
+    fn solve(board: &mut Board, player: Player, time_limit: u64) -> (i32, usize, usize) {
+        let start = Instant::now(); 
+        let budget = Duration::from_millis(time_limit).mul_f64(0.90);
+        let deadline = start + budget;
+
+        //safe default in case time runs out before depth 1
+        let first_moves = board.moves();
+        let mut best = (0, first_moves[0].0, first_moves[0].1);
+
+        // iterative deepening - try depth 1, 2, 3 etc until time runs out
+        for depth in 1.. {
+            match minimax(board, player, depth, i32::MIN, i32::MAX, &deadline) {
+                Some(result) => {
+                    best = result;
+                    // If we already burned most of the budget on this depth,
+                    // the next iteration won't finish
+                    if Instant::now() >= deadline {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
+
+        best
     }
 }
